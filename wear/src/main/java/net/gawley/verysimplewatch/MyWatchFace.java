@@ -87,6 +87,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
+        Paint mBackgroundPaint2;
         Paint mTimeTextPaint;
         Paint mDayDateTextPaint;
         boolean mAmbient;
@@ -99,12 +100,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         };
 
-        float mWatchHeight = 320;
-        float mWatchWidth = 320;
-        float mPadding = 20;
-
-        float mTimeTextSize = 80;
-        float mDayDateTextSize = 20;
+        float mPadding = 10;
 
         String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
                 "Sunday"};
@@ -131,6 +127,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(r.getColor(R.color.background));
+            mBackgroundPaint2 = new Paint();
+            mBackgroundPaint2.setColor(r.getColor(R.color.blue));
 
             mTimeTextPaint = createTextPaint(r.getColor(R.color.time_text),
                     r.getDimension(R.dimen.time_text_size));
@@ -192,23 +190,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
             MyWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
         }
 
-        /*@Override
-        public void onApplyWindowInsets(WindowInsets insets) {
-            super.onApplyWindowInsets(insets);
-
-            // Load resources that have alternate values for round watches.
-            Resources resources = MyWatchFace.this.getResources();
-            boolean isRound = insets.isRound();
-            mXOffset = resources.getDimension(isRound
-                    ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-            float textSize = resources.getDimension(isRound
-                    ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
-            mYOffset = (mWatchHeight - textSize) / 2;
-            Log.d("ALEXG", String.format("%d", mYOffset));
-
-            mTimeTextPaint.setTextSize(textSize);
-        }*/
-
         @Override
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
@@ -250,21 +231,29 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mTime.setToNow();
 
             String timeText = String.format("%d:%02d", mTime.hour, mTime.minute);
+
+            // Calculate height of time text
             Rect timeTextBounds = new Rect();
-            mTimeTextPaint.getTextBounds(timeText, 0, 1, timeTextBounds);
-            canvas.drawText(timeText, bounds.width() / 2, bounds.width() / 2, mTimeTextPaint);
-            Log.d("ALEXG", bounds.flattenToString());
+            mTimeTextPaint.getTextBounds(timeText, 0, timeText.length(), timeTextBounds);
+            int timeTextHeight = timeTextBounds.bottom - timeTextBounds.top;
+
+            canvas.drawText(timeText, bounds.width() / 2, (bounds.width() + timeTextHeight) / 2,
+                    mTimeTextPaint);
 
             String dayText = String.format("%s", days[mTime.weekDay - 1]);
+
+            // Calculate height of day text
             Rect dayTextBounds = new Rect();
-            mDayDateTextPaint.getTextBounds(dayText, 0, 1, dayTextBounds);
+            mDayDateTextPaint.getTextBounds(dayText, 0, dayText.length(), dayTextBounds);
+            int dayDateTextHeight = dayTextBounds.bottom - dayTextBounds.top;
+
             canvas.drawText(dayText, bounds.width() / 2,
-                    ((mWatchHeight - timeTextBounds.height() - dayTextBounds.height()) / 2)
+                    ((bounds.width() - timeTextHeight) / 2)
                             - mPadding, mDayDateTextPaint);
 
             String dateText = String.format("%s %d", months[mTime.month - 1], mTime.monthDay);
             canvas.drawText(dateText, bounds.width() / 2,
-                    (mWatchHeight + mTimeTextSize) / 2,
+                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + mPadding,
                     mDayDateTextPaint);
 
         }
