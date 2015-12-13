@@ -32,7 +32,6 @@ import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.Time;
-import android.util.Log;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
@@ -48,8 +47,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
     /**
-     * Update rate in milliseconds for interactive mode. We update once a second since seconds are
-     * displayed in interactive mode.
+     * Update rate in milliseconds for interactive mode.
      */
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.MINUTES.toMillis(1);
 
@@ -87,7 +85,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         Paint mBackgroundPaint;
-        Paint mBackgroundPaint2;
         Paint mTimeTextPaint;
         Paint mDayDateTextPaint;
         boolean mAmbient;
@@ -100,10 +97,10 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
         };
 
-        float mPadding = 10;
+        static final int VERTICAL_PADDING = 10;
 
-        String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
-                "Sunday"};
+        String[] days = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                "Saturday"};
         String[] months = {"January", "February", "March", "April", "May", "June", "July",
                 "August", "September", "October", "November", "December"};
 
@@ -127,8 +124,6 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(r.getColor(R.color.background));
-            mBackgroundPaint2 = new Paint();
-            mBackgroundPaint2.setColor(r.getColor(R.color.blue));
 
             mTimeTextPaint = createTextPaint(r.getColor(R.color.time_text),
                     r.getDimension(R.dimen.time_text_size));
@@ -240,7 +235,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             canvas.drawText(timeText, bounds.width() / 2, (bounds.width() + timeTextHeight) / 2,
                     mTimeTextPaint);
 
-            String dayText = String.format("%s", days[mTime.weekDay - 1]);
+            String dayText = String.format("%s", days[mTime.weekDay]);
 
             // Calculate height of day text
             Rect dayTextBounds = new Rect();
@@ -249,11 +244,11 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
             canvas.drawText(dayText, bounds.width() / 2,
                     ((bounds.width() - timeTextHeight) / 2)
-                            - mPadding, mDayDateTextPaint);
+                            - VERTICAL_PADDING, mDayDateTextPaint);
 
             String dateText = String.format("%s %d", months[mTime.month - 1], mTime.monthDay);
             canvas.drawText(dateText, bounds.width() / 2,
-                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + mPadding,
+                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
                     mDayDateTextPaint);
 
         }
