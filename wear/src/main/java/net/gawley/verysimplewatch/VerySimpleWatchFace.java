@@ -266,23 +266,23 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
                     mTimeTextPaint);
 
 
-            // Draw day text
+            // Draw day text if there is no peek card
             String dayText = mDayOfWeekFormat.format(mDate);
 
             // Calculate height of day text
             Rect dayTextBounds = new Rect();
             mDayDateTextPaint.getTextBounds(dayText, 0, dayText.length(), dayTextBounds);
             int dayDateTextHeight = dayTextBounds.bottom - dayTextBounds.top;
-
-            canvas.drawText(dayText, bounds.width() / 2,
-                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
-                    mDayDateTextPaint);
-
+            if (getPeekCardPosition().isEmpty()) {
+                canvas.drawText(dayText, bounds.width() / 2,
+                        ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
+                        mDayDateTextPaint);
+            }
 
             // Draw "Month DayofMonth" text
             String dateText = mDateFormat.format(mDate);
             canvas.drawText(dateText, bounds.width() / 2,
-                    ((bounds.width() - timeTextHeight) / 2) - VERTICAL_PADDING,
+                    ((bounds.width() - timeTextHeight) / 2) - (9 * VERTICAL_PADDING / 10),
                     mDayDateTextPaint);
 
         }
