@@ -31,10 +31,14 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
-import android.text.format.Time;
+import android.text.format.DateFormat;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -42,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * Digital watch face with seconds. In ambient mode, the seconds aren't displayed. On devices with
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
-public class MyWatchFace extends CanvasWatchFaceService {
+public class VerySimpleWatchFace extends CanvasWatchFaceService {
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
@@ -62,15 +66,15 @@ public class MyWatchFace extends CanvasWatchFaceService {
     }
 
     private static class EngineHandler extends Handler {
-        private final WeakReference<MyWatchFace.Engine> mWeakReference;
+        private final WeakReference<VerySimpleWatchFace.Engine> mWeakReference;
 
-        public EngineHandler(MyWatchFace.Engine reference) {
+        public EngineHandler(VerySimpleWatchFace.Engine reference) {
             mWeakReference = new WeakReference<>(reference);
         }
 
         @Override
         public void handleMessage(Message msg) {
-            MyWatchFace.Engine engine = mWeakReference.get();
+            VerySimpleWatchFace.Engine engine = mWeakReference.get();
             if (engine != null) {
                 switch (msg.what) {
                     case MSG_UPDATE_TIME:
@@ -83,26 +87,37 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
     private class Engine extends CanvasWatchFaceService.Engine {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
-        boolean mRegisteredTimeZoneReceiver = false;
+
         Paint mBackgroundPaint;
         Paint mTimeTextPaint;
         Paint mDayDateTextPaint;
         boolean mAmbient;
-        Time mTime;
+
+        //Time stuff
+        Calendar mCalendar;
+        Date mDate;
+        SimpleDateFormat mDayOfWeekFormat;
+        SimpleDateFormat mDateFormat;
+        boolean mRegisteredTimeZoneReceiver = false;
+
+        private void initFormats() {
+            mDayOfWeekFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
+            mDayOfWeekFormat.setCalendar(mCalendar);
+            String datePattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "MMMMd");
+            mDateFormat = new SimpleDateFormat(datePattern, Locale.getDefault());
+            mDateFormat.setCalendar(mCalendar);
+        }
+
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                mTime.clear(intent.getStringExtra("time-zone"));
-                mTime.setToNow();
+                mCalendar.setTimeZone(TimeZone.getDefault());
+                initFormats();
+                invalidate();
             }
         };
 
         static final int VERTICAL_PADDING = 10;
-
-        String[] days = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                "Saturday"};
-        String[] months = {"January", "February", "March", "April", "May", "June", "July",
-                "August", "September", "October", "November", "December"};
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -115,12 +130,12 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(MyWatchFace.this)
+            setWatchFaceStyle(new WatchFaceStyle.Builder(VerySimpleWatchFace.this)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_SHORT)
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
                     .build());
-            Resources r = MyWatchFace.this.getResources();
+            Resources r = VerySimpleWatchFace.this.getResources();
 
             mBackgroundPaint = new Paint();
             mBackgroundPaint.setColor(r.getColor(R.color.background));
@@ -130,7 +145,9 @@ public class MyWatchFace extends CanvasWatchFaceService {
             mDayDateTextPaint = createTextPaint(r.getColor(R.color.day_date_text),
                     r.getDimension(R.dimen.day_date_text_size));
 
-            mTime = new Time();
+            mCalendar = Calendar.getInstance();
+            mDate = new Date();
+            initFormats();
         }
 
         @Override
@@ -157,8 +174,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 registerReceiver();
 
                 // Update time zone in case it changed while we weren't visible.
-                mTime.clear(TimeZone.getDefault().getID());
-                mTime.setToNow();
+                mCalendar.setTimeZone(TimeZone.getDefault());
+                initFormats();
             } else {
                 unregisterReceiver();
             }
@@ -174,7 +191,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
             mRegisteredTimeZoneReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            MyWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
+            filter.addAction(Intent.ACTION_LOCALE_CHANGED);
+            VerySimpleWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
         }
 
         private void unregisterReceiver() {
@@ -182,7 +200,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 return;
             }
             mRegisteredTimeZoneReceiver = false;
-            MyWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+            VerySimpleWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
         }
 
         @Override
@@ -223,9 +241,22 @@ public class MyWatchFace extends CanvasWatchFaceService {
             }
 
             // Draw H:MM in ambient mode or H:MM in interactive mode.
-            mTime.setToNow();
+            long now = System.currentTimeMillis();
+            mCalendar.setTimeInMillis(now);
+            mDate.setTime(now);
+            boolean is24Hour = DateFormat.is24HourFormat(VerySimpleWatchFace.this);
 
-            String timeText = String.format("%d:%02d", mTime.hour, mTime.minute);
+            String timeText;
+            if (is24Hour) {
+                timeText = String.format("%02d:%02d", mCalendar.get(Calendar.HOUR_OF_DAY),
+                        mCalendar.get(Calendar.MINUTE));
+            } else {
+                int hour = mCalendar.get(Calendar.HOUR);
+                if (hour == 0) {
+                    hour = 12;
+                }
+                timeText = String.format("%d:%02d", hour, mCalendar.get(Calendar.MINUTE));
+            }
 
             // Calculate height of time text
             Rect timeTextBounds = new Rect();
@@ -235,7 +266,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             canvas.drawText(timeText, bounds.width() / 2, (bounds.width() + timeTextHeight) / 2,
                     mTimeTextPaint);
 
-            String dayText = String.format("%s", days[mTime.weekDay]);
+            String dayText = mDayOfWeekFormat.format(mDate);
 
             // Calculate height of day text
             Rect dayTextBounds = new Rect();
@@ -246,7 +277,8 @@ public class MyWatchFace extends CanvasWatchFaceService {
                     ((bounds.width() - timeTextHeight) / 2)
                             - VERTICAL_PADDING, mDayDateTextPaint);
 
-            String dateText = String.format("%s %d", months[mTime.month - 1], mTime.monthDay);
+
+            String dateText = mDateFormat.format(mDate);
             canvas.drawText(dateText, bounds.width() / 2,
                     ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
                     mDayDateTextPaint);
