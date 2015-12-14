@@ -156,10 +156,15 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
         }
 
         private Paint createTextPaint(int textColor, float textSize) {
+            Typeface roboto = Typeface.createFromAsset(getAssets(), "robotolight.ttf");
+
+
             Paint paint = new Paint();
             paint.setColor(textColor);
-            paint.setTypeface(NORMAL_TYPEFACE);
+            paint.setTypeface(roboto);
             paint.setAntiAlias(true);
+            paint.setSubpixelText(true);
+
             paint.setTextSize(textSize);
             paint.setTextAlign(Paint.Align.CENTER);
             return paint;
@@ -275,14 +280,14 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             int dayDateTextHeight = dayTextBounds.bottom - dayTextBounds.top;
             if (getPeekCardPosition().isEmpty()) {
                 canvas.drawText(dayText, bounds.width() / 2,
-                        ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
-                        mDayDateTextPaint);
+                        ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight
+                                + (9 * VERTICAL_PADDING / 10), mDayDateTextPaint);
             }
 
             // Draw "Month DayofMonth" text
             String dateText = mDateFormat.format(mDate);
             canvas.drawText(dateText, bounds.width() / 2,
-                    ((bounds.width() - timeTextHeight) / 2) - (9 * VERTICAL_PADDING / 10),
+                    ((bounds.width() - timeTextHeight) / 2) - VERTICAL_PADDING,
                     mDayDateTextPaint);
 
         }
