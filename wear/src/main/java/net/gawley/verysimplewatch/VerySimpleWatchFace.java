@@ -100,6 +100,14 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
         SimpleDateFormat mDateFormat;
         boolean mRegisteredTimeZoneReceiver = false;
 
+        static final int VERTICAL_PADDING = 20;
+
+        /**
+         * Whether the display supports fewer bits for each color in ambient mode. When true, we
+         * disable anti-aliasing in ambient mode.
+         */
+        boolean mLowBitAmbient;
+
         private void initFormats() {
             mDayOfWeekFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
             mDayOfWeekFormat.setCalendar(mCalendar);
@@ -116,15 +124,6 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-
-        static final int VERTICAL_PADDING = 10;
-
-        /**
-         * Whether the display supports fewer bits for each color in ambient mode. When true, we
-         * disable anti-aliasing in ambient mode.
-         */
-        boolean mLowBitAmbient;
-
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -266,6 +265,8 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             canvas.drawText(timeText, bounds.width() / 2, (bounds.width() + timeTextHeight) / 2,
                     mTimeTextPaint);
 
+
+            // Draw day text
             String dayText = mDayOfWeekFormat.format(mDate);
 
             // Calculate height of day text
@@ -274,13 +275,14 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             int dayDateTextHeight = dayTextBounds.bottom - dayTextBounds.top;
 
             canvas.drawText(dayText, bounds.width() / 2,
-                    ((bounds.width() - timeTextHeight) / 2)
-                            - VERTICAL_PADDING, mDayDateTextPaint);
+                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
+                    mDayDateTextPaint);
 
 
+            // Draw "Month DayofMonth" text
             String dateText = mDateFormat.format(mDate);
             canvas.drawText(dateText, bounds.width() / 2,
-                    ((bounds.width() + timeTextHeight) / 2) + dayDateTextHeight + VERTICAL_PADDING,
+                    ((bounds.width() - timeTextHeight) / 2) - VERTICAL_PADDING,
                     mDayDateTextPaint);
 
         }
