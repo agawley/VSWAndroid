@@ -183,6 +183,7 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             } else {
                 unregisterReceiver();
             }
+            invalidate();
 
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
