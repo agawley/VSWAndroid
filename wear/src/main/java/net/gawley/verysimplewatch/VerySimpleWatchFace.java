@@ -32,6 +32,7 @@ import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
@@ -91,7 +92,6 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
         Paint mBackgroundPaint;
         Paint mTimeTextPaint;
         Paint mDayDateTextPaint;
-        boolean mAmbient;
 
         //Time stuff
         Calendar mCalendar;
@@ -116,6 +116,21 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             mDateFormat.setCalendar(mCalendar);
         }
 
+        private Paint createTextPaint(int textColor, float textSize) {
+            Typeface roboto = Typeface.createFromAsset(getAssets(), "robotolight.ttf");
+
+
+            Paint paint = new Paint();
+            paint.setColor(textColor);
+            paint.setTypeface(roboto);
+            paint.setAntiAlias(true);
+            paint.setSubpixelText(true);
+
+            paint.setTextSize(textSize);
+            paint.setTextAlign(Paint.Align.CENTER);
+            return paint;
+        }
+
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -124,6 +139,56 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
+
+        private void registerReceiver() {
+            if (mRegisteredTimeZoneReceiver) {
+                return;
+            }
+            mRegisteredTimeZoneReceiver = true;
+            IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
+            filter.addAction(Intent.ACTION_LOCALE_CHANGED);
+            VerySimpleWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
+        }
+
+        private void unregisterReceiver() {
+            if (!mRegisteredTimeZoneReceiver) {
+                return;
+            }
+            mRegisteredTimeZoneReceiver = false;
+            VerySimpleWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+        }
+
+        /**
+         * Starts the {@link #mUpdateTimeHandler} timer if it should be running and isn't currently
+         * or stops it if it shouldn't be running but currently is.
+         */
+        private void updateTimer() {
+            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
+            if (shouldTimerBeRunning()) {
+                mUpdateTimeHandler.sendEmptyMessage(MSG_UPDATE_TIME);
+            }
+        }
+
+        /**
+         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer should
+         * only run when we're visible and in interactive mode.
+         */
+        private boolean shouldTimerBeRunning() {
+            return isVisible() && !isInAmbientMode();
+        }
+
+        /**
+         * Handle updating the time periodically in interactive mode.
+         */
+        private void handleUpdateTimeMessage() {
+            invalidate();
+            if (shouldTimerBeRunning()) {
+                long timeMs = System.currentTimeMillis();
+                long delayMs = INTERACTIVE_UPDATE_RATE_MS
+                        - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
+                mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
+            }
+        }
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -155,21 +220,6 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             super.onDestroy();
         }
 
-        private Paint createTextPaint(int textColor, float textSize) {
-            Typeface roboto = Typeface.createFromAsset(getAssets(), "robotolight.ttf");
-
-
-            Paint paint = new Paint();
-            paint.setColor(textColor);
-            paint.setTypeface(roboto);
-            paint.setAntiAlias(true);
-            paint.setSubpixelText(true);
-
-            paint.setTextSize(textSize);
-            paint.setTextAlign(Paint.Align.CENTER);
-            return paint;
-        }
-
         @Override
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
@@ -190,22 +240,10 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
             updateTimer();
         }
 
-        private void registerReceiver() {
-            if (mRegisteredTimeZoneReceiver) {
-                return;
-            }
-            mRegisteredTimeZoneReceiver = true;
-            IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            filter.addAction(Intent.ACTION_LOCALE_CHANGED);
-            VerySimpleWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
-        }
-
-        private void unregisterReceiver() {
-            if (!mRegisteredTimeZoneReceiver) {
-                return;
-            }
-            mRegisteredTimeZoneReceiver = false;
-            VerySimpleWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+        @Override
+        public void onPeekCardPositionUpdate(Rect rect) {
+            super.onPeekCardPositionUpdate(rect);
+            invalidate();
         }
 
         @Override
@@ -215,25 +253,25 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
         }
 
         @Override
-        public void onTimeTick() {
-            super.onTimeTick();
-            invalidate();
-        }
-
-        @Override
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
-            if (mAmbient != inAmbientMode) {
-                mAmbient = inAmbientMode;
-                if (mLowBitAmbient) {
-                    mTimeTextPaint.setAntiAlias(!inAmbientMode);
-                }
-                invalidate();
+            if (inAmbientMode) {
+                mTimeTextPaint.setAntiAlias(!mLowBitAmbient);
+                mDayDateTextPaint.setColor(getResources().getColor(R.color.time_text));
+            } else {
+                mTimeTextPaint.setAntiAlias(true);
+                mDayDateTextPaint.setColor(getResources().getColor(R.color.day_date_text));
             }
-
+            invalidate();
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
+        }
+
+        @Override
+        public void onTimeTick() {
+            super.onTimeTick();
+            invalidate();
         }
 
         @Override
@@ -293,36 +331,5 @@ public class VerySimpleWatchFace extends CanvasWatchFaceService {
 
         }
 
-        /**
-         * Starts the {@link #mUpdateTimeHandler} timer if it should be running and isn't currently
-         * or stops it if it shouldn't be running but currently is.
-         */
-        private void updateTimer() {
-            mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
-            if (shouldTimerBeRunning()) {
-                mUpdateTimeHandler.sendEmptyMessage(MSG_UPDATE_TIME);
-            }
-        }
-
-        /**
-         * Returns whether the {@link #mUpdateTimeHandler} timer should be running. The timer should
-         * only run when we're visible and in interactive mode.
-         */
-        private boolean shouldTimerBeRunning() {
-            return isVisible() && !isInAmbientMode();
-        }
-
-        /**
-         * Handle updating the time periodically in interactive mode.
-         */
-        private void handleUpdateTimeMessage() {
-            invalidate();
-            if (shouldTimerBeRunning()) {
-                long timeMs = System.currentTimeMillis();
-                long delayMs = INTERACTIVE_UPDATE_RATE_MS
-                        - (timeMs % INTERACTIVE_UPDATE_RATE_MS);
-                mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
-            }
-        }
     }
 }
